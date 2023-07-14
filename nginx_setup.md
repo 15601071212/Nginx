@@ -6,7 +6,7 @@
 
 
 
-#### b. 建议到https://uwsgi-docs.readthedocs.io/en/latest/Download.html页面，下载Stable/LTS版本的源文件
+#### b. 建议到 https://uwsgi-docs.readthedocs.io/en/latest/Download.html 页面，下载Stable/LTS版本的源文件
 
 在ubuntu中，解压源码，然后指定安装位置，将uWSGI 安装好：
 
@@ -28,11 +28,12 @@
 
 def application(env, start_response):
 
-start_response('200 OK', [('Content-Type','text/html')])
+    start_response('200 OK', [('Content-Type','text/html')])
 
-return [b"Hello World"] # python3
+    return [b"Hello World"] # python3
 
-#return ["Hello World"] # python2
+    #return ["Hello World"] # python2
+
 ```
 运行uWSGI：
 
