@@ -49,7 +49,7 @@ def application(env, start_response):
 
 #### d. 通过uWSGI运行Django项目网站代替test.py模块：
 
-首先确认Django项目网站可以通过自带的开发服务器正常运行如下所示：
+- 首先确认Django项目网站可以通过自带的开发服务器正常运行如下所示：
 
 ```python
 python manage.py runserver 0.0.0.0:8888
@@ -78,11 +78,11 @@ Quit the server with CONTROL-C.
 
 ```
 
-- 通过浏览器可以正常访问Django项目网站地址 http://10.229.191.63:8888/admin/ 如下所示：
+通过浏览器可以正常访问Django项目网站地址 http://10.229.191.63:8888/admin/ 如下所示：
 
 ![图片](hello_world.jpg)
 
-接下来可以通过uWSGI来运行Django项目网站如下所示：
+- 接下来可以通过uWSGI来运行Django项目网站如下所示：
 
 ```python
 root@zdh-web-00:/var/www/LRM# uwsgi --http :8888 --module LRM.wsgi
@@ -163,6 +163,6 @@ spawned uWSGI worker 1 (and the only) (pid: 12703, cores: 1)
 
 ```
 
-- 通过浏览器可以正常访问Django项目网站地址 http://10.229.191.63:8888/admin/ 如下所示：
+通过浏览器可以正常访问Django项目网站地址 http://10.229.191.63:8888/admin/ 如下所示：
 
 ![图片](hello_world.jpg)
