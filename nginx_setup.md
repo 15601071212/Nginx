@@ -166,3 +166,278 @@ spawned uWSGI worker 1 (and the only) (pid: 12703, cores: 1)
 通过浏览器可以正常访问Django项目网站地址 http://10.229.191.63:8888/admin/ 如下所示：
 
 ![图片](hello_world.jpg)
+
+上述测试证明如下所示的访问流程可以正常工作：
+
+the web client <-> uWSGI <-> Django
+
+
+
+注：Django项目LRM的wsgi.py文件内容如下所示：
+
+root@zdh-web-00:/var/www/LRM/LRM# more wsgi.py
+
+"""
+
+WSGI config for LRM project.
+
+It exposes the WSGI callable as a module-level variable named ``application``.
+
+For more information on this file, see
+
+https://docs.djangoproject.com/en/4.1/howto/deployment/wsgi/
+
+"""
+
+import os
+
+import sys
+
+from django.core.wsgi import get_wsgi_application
+
+from os.path import join,dirname,abspath
+
+
+
+PROJECT_DIR = dirname(dirname(abspath(__file__)))
+
+sys.path.insert(0,PROJECT_DIR)
+
+
+
+os.environ["DJANGO_SETTINGS_MODULE"] = "LRM.settings"
+
+
+
+from django.core.wsgi import get_wsgi_application
+
+application = get_wsgi_application()
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'LRM.settings')
+
+application = get_wsgi_application()
+
+root@zdh-web-00:/var/www/LRM/LRM#
+
+
+
+2. nginx的安装和配置
+
+a. 安装nginx
+
+sudo apt-get install nginx
+
+sudo /etc/init.d/nginx start    # start nginx
+
+
+
+b. 配置nginx
+
+在/etc/nginx/sites-available/路径下新建Django LRM项目的配置文件LRM_nginx.conf如下所示：
+
+root@zdh-web-00:/etc/nginx/sites-available# more LRM_nginx.conf
+
+# mysite_nginx.conf
+
+# the upstream component nginx needs to connect to
+
+upstream django {
+
+# server unix:///path/to/your/mysite/mysite.sock; # for a file socket
+
+server 127.0.0.1:8001; # for a web port socket (we'll use this first)
+
+#server unix:/var/www/LRM/LRM.sock;
+
+}
+
+# configuration of the server
+
+server {
+
+# the port your site will be served on
+
+listen      8000;
+
+# the domain name it will serve for
+
+server_name 10.229.191.63; # substitute your machine's IP address or FQDN
+
+charset     utf-8;
+
+# max upload size
+
+client_max_body_size 75M;   # adjust to taste
+
+access_log /var/log/nginx/access.log;
+
+error_log /var/log/nginx/error.log;
+
+# Django media
+
+location /media  {
+
+alias /var/www/LRM/media;  # your Django project's media files - amend as required
+
+}
+
+location /static {
+
+alias /var/www/LRM/static; # your Django project's static files - amend as required
+
+}
+
+# Finally, send all non-media requests to the Django server.
+
+location / {
+
+uwsgi_pass  django;
+
+include     /var/www/LRM/uwsgi_params; # the uwsgi_params file you installed
+
+uwsgi_connect_timeout 30;
+
+}
+
+}
+
+root@zdh-web-00:/etc/nginx/sites-available#
+
+通过ln -s命令建立软连接从 /etc/nginx/sites-enabled到这个文件如下所示：
+
+sudo ln -s /etc/nginx/sites-available/mysite_nginx.conf /etc/nginx/sites-enabled/
+
+root@zdh-web-00:/etc/nginx/sites-enabled# ls -al
+
+total 8
+
+drwxr-xr-x 2 root root 4096 Jan 22 22:31 .
+
+drwxr-xr-x 8 root root 4096 Jan 22 22:24 ..
+
+lrwxrwxrwx 1 root root   34 Jan 22 22:24 default -> /etc/nginx/sites-available/default
+
+lrwxrwxrwx 1 root root   41 Jan 22 22:31 LRM_nginx.conf -> /etc/nginx/sites-available/LRM_nginx.conf
+
+root@zdh-web-00:/etc/nginx/sites-enabled#
+
+
+
+注：将Django项目所有的静态文件(static files)放在static文件夹下，并编辑/var/www/LRM/LRM/settings.py文件如下所示
+
+STATICFILES_DIRS = [
+
+os.path.join(BASE_DIR, 'static'),
+
+]
+
+
+
+3. 通过uwsgi和nginx运行Django应用
+
+a. 在/var/www/LRM文件夹下新建uwsgi.ini文件如下所示：
+
+root@zdh-web-00:/var/www/LRM# more uwsgi.ini
+
+[uwsgi]
+
+#chdir = /var/www/LRM    //项目根目录
+
+module = LRM.wsgi     //  指定wsgi模块下的application对象
+
+#workers = 5
+
+#pidfile= /var/www/LRM/uwsgi.pid
+
+socket = :8001        //对本机8000端口提供服务
+
+master = true                   //主进程
+
+#vacuum =true
+
+#enable-threads = true
+
+#thunder-lock = true
+
+#harakiri =30
+
+#post-buffer = 4096
+
+#http = 127.0.0.1:8001
+
+#static-map = /static=/var/www/LRM/static
+
+#uid = root
+
+#gid = root
+
+wsgi-file = /var/www/LRM/LRM/wsgi.py
+
+#daemonize = /var/www/LRM/uwsgi.log
+
+logto = /var/www/LRM/uwsgi.log
+
+disable-logging = true   //不记录正常信息，只记录错误信息
+
+#buffer-size =65535
+
+root@zdh-web-00:/var/www/LRM#
+
+
+
+b. 通过如下所示的命令停止和启动 nginx + uwsgi：
+
+root@zdh-web-00:~# netstat -lnp| grep 8000
+
+tcp 0 0 0.0.0.0:8000 0.0.0.0:* LISTEN 212910/nginx: maste
+
+root@zdh-web-00:~# netstat -lnp| grep 8001
+
+tcp 0 0 0.0.0.0:8001 0.0.0.0:* LISTEN 212989/uwsgi
+
+root@zdh-web-00:~# kill -9 212910
+
+root@zdh-web-00:~# kill -9 212989
+
+root@zdh-web-00:~# netstat -lnp| grep 8000
+
+root@zdh-web-00:~# netstat -lnp| grep 8001
+
+root@zdh-web-00:~# service nginx start
+
+root@zdh-web-00:~# cd /var/www/LRM
+
+root@zdh-web-00:/var/www/LRM# uwsgi --chdir /var/www/LRM --ini uwsgi.ini
+
+[uWSGI] getting INI configuration from uwsgi.ini
+
+root@zdh-web-00:/var/www/LRM#
+
+root@zdh-web-00:/var/www/LRM#
+
+root@zdh-web-00:/var/www/LRM# netstat -lnp| grep 8001
+
+tcp 0 0 0.0.0.0:8001 0.0.0.0:* LISTEN 213151/uwsgi
+
+root@zdh-web-00:/var/www/LRM# netstat -lnp| grep 8000
+
+tcp 0 0 0.0.0.0:8000 0.0.0.0:* LISTEN 213135/nginx: maste
+
+root@zdh-web-00:/var/www/LRM#
+
+通过浏览器的8000端口可以正常访问Django项目网站地址http://10.229.191.63:8000/admin/如下所示：
+
+![图片](hello_world.jpg)
+
+上述测试证明如下所示的访问流程可以正常工作：
+
+the web client <-> the web server <-> the socket <-> uWSGI <-> Django
+
+
+
+附录：参考文档网页地址：
+
+https://uwsgi-docs.readthedocs.io/en/latest/tutorials/Django_and_nginx.html
+
+https://www.liujiangblog.com/course/django/181
+
