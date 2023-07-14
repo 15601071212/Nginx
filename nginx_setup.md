@@ -40,3 +40,4 @@ def application(env, start_response):
 `uwsgi --http :8000 --wsgi-file test.py`
 
 打开浏览器访问8888端口可以看到如下显示：
+![图片](hello_world.jpg)
